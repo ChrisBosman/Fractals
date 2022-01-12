@@ -54,17 +54,7 @@ private:
 	//texture
 	SDL_Texture* fractalTex = nullptr;
 	//Settings
-	uint8_t color = 1; //1 = red, 2 = green, 3 = blue, 5 = all colors 
+	uint8_t color = 3; //1 = red, 2 = green, 3 = blue, 5 = all colors 
 	bool juliaSet = false; //switch to the julia set
 	bool buddhaSet = false; //switch to a sort buddha thing
 };
-
-
-/*What I need:
-	* renderer
-	* gridsize and bounds
-	* make a vector of points over the screen with gridsieze size
-	* full the array if number on how stable the points are
-	* render it some way, maybe using marching square or make my own methode
-	* rendering might be difficult
-*/

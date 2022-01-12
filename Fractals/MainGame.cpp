@@ -38,7 +38,13 @@ int MainGame::checkStability(double cReal, double cIm, int N, double zReal = 0, 
 	while (i < N && zReal * zReal + zIm * zIm < 4.0) {
 			//Z^2 + C
 		double tmp = zReal * zReal - zIm * zIm + cReal;
-		zIm = 2.0 * zReal * zIm + cIm;
+		if (false){ //make the burining ship fractal if false
+			zIm = 2.0 * zReal * zIm + cIm;
+		}
+		else {
+			zIm = abs(2.0 * zReal * zIm) + cIm;
+		}
+		
 			//Z^3 + C
 		//double tmp = zReal * (zReal * zReal - 3 * zIm * zIm) + cReal;
 		//zIm = zIm * (3 * zReal * zReal - zIm * zIm) + cIm;
@@ -366,7 +372,7 @@ void MainGame::update() {
 	//parameters
 	int imageWidth = windowWidth;
 	int imageHeight = windowHeight;
-	int maxN = 50;
+	int maxN = 500;
 	if (buddhaSet) {
 		CreateBuddha(maxN);
 	}
