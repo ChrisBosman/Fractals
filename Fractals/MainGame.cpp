@@ -36,21 +36,36 @@ int MainGame::mapFromImaginary(double im) {
 int MainGame::checkStability(double cReal, double cIm, int N, double zReal = 0, double zIm = 0) {
 	int i = 0;
 	while (i < N && zReal * zReal + zIm * zIm < 4.0) {
+		double tmp;
+		switch (fracfunct) {
+		case 1:
 			//Z^2 + C
-		double tmp = zReal * zReal - zIm * zIm + cReal;
-		if (false){ //make the burining ship fractal if false
+			tmp = zReal * zReal - zIm * zIm + cReal;
 			zIm = 2.0 * zReal * zIm + cIm;
-		}
-		else {
-			zIm = abs(2.0 * zReal * zIm) + cIm;
-		}
-		
-			//Z^3 + C
-		//double tmp = zReal * (zReal * zReal - 3 * zIm * zIm) + cReal;
-		//zIm = zIm * (3 * zReal * zReal - zIm * zIm) + cIm;
+			break;
+		case 2:
+			//Z ^ 3 + C
+			tmp = zReal * (zReal * zReal - 3 * zIm * zIm) + cReal;
+			zIm = zIm * (3 * zReal * zReal - zIm * zIm) + cIm;
+			break;
+		case 3:
 			//Z^4 + C
-		//double tmp = zReal*zReal*zReal*zReal - 6*zReal*zReal*zIm*zIm + zIm*zIm*zIm*zIm + cReal;
-		//zIm = 4 * zReal * zIm * (zReal * zReal - zIm * zIm) + cIm;
+			tmp = zReal * zReal * zReal * zReal - 6 * zReal * zReal * zIm * zIm + zIm * zIm * zIm * zIm + cReal;
+			zIm = 4 * zReal * zIm * (zReal * zReal - zIm * zIm) + cIm;
+			break;
+		case 4:
+			//burning ship
+			//Z^2 + C
+			tmp = zReal * zReal - zIm * zIm + cReal;
+			zIm = abs(2.0 * zReal * zIm) + cIm;
+			break;
+		default:
+			std::cout << "No fractal function selected, so just drawing default Mandelbrot\n";
+			//Z^2 + C
+			tmp = zReal * zReal - zIm * zIm + cReal;
+			zIm = 2.0 * zReal * zIm + cIm;
+			break;
+		}
 		zReal = tmp;
 		i++;
 	}
@@ -128,7 +143,7 @@ void MainGame::setColor(int n, int maxN) {
 	case 2: //green
 		RGB[0] = 0; //red
 		RGB[1] = n * 2; //green
-		RGB[2] = n * 0.6; //blue
+		RGB[2] = n * 0.6; //blue		  
 		break;
 	case 3: //blue
 		mapToBlue(RGB, n, maxN);
@@ -221,9 +236,13 @@ void MainGame::initTextures() {
 	fractalTex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ABGR8888, SDL_TEXTUREACCESS_TARGET, windowWidth, windowHeight);
 	if (!fractalTex)
 		fatalError("Fractal Texture could not be created\n");
+	//create the textures for the menu's
+	createTexture("assets/Menu.png", escMenuTex);
+	//create texture for the function menu
+	createTexture("assets/FractalFunctions.png", funcMenuTex);
 }
 
-void MainGame::createTexture(const char* filePath, SDL_Texture* tex) {
+void MainGame::createTexture(const char* filePath, SDL_Texture* &tex) {
 	SDL_Surface* tmpSurface = IMG_Load(filePath); //create temporary surface
 	tex = SDL_CreateTextureFromSurface(renderer, tmpSurface); //turn surface into texture
 	if (!tex) fatalError("Texture could not be loaded!"); //check if succesfull
@@ -235,6 +254,14 @@ void MainGame::processInput() {
 	SDL_Event event;
 	while (SDL_PollEvent(&event)) { //while there is an event, (somethings happens)
 		//see what event it is
+		if (state == State::escMenu) {
+			processEscMenuInput(event);
+			continue;
+		}
+		if (state == State::functionMenu) {
+			processFunMenuInput(event);
+			continue;
+		}
 		switch (event.type) {
 		case SDL_QUIT: //when the red cross is pressed
 			isRunning = false;
@@ -261,9 +288,8 @@ void MainGame::processInput() {
 				update();
 				break;
 			case 27: //esc key
-				//reset zoom
-				xBound[0] = -1.5; xBound[1] = 1.5;
-				yBound[0] = -1.5; yBound[1] = 1.5;
+				//open esc menu
+				state = State::escMenu;
 				break;
 			case 115: //s
 				saveTexture("FractalImage1.png", fractalTex);
@@ -361,6 +387,73 @@ void MainGame::processInput() {
 	}
 }
 
+//process input for the esc menu
+void MainGame::processEscMenuInput(SDL_Event& event) {
+	switch (event.type) {
+	case SDL_QUIT: //when the red cross is pressed
+		isRunning = false;
+		break;
+	case SDL_KEYDOWN:
+		if (event.key.keysym.sym == 27)
+			state = State::fractal;
+		break;
+	case SDL_MOUSEBUTTONDOWN:
+		//check if x coords are in within the xsize of the buttons
+		if (event.button.x > 0.25*windowWidth && event.button.x < 0.75*windowWidth) {
+			//check y coords
+			int num = ceil( (event.button.y - 0.1 * windowHeight) / (0.2*windowHeight));
+			switch (num) {
+			case 1: //continue
+				state = State::fractal;
+				break;
+			case 2: //reset view
+				xBound[0] = -2; xBound[1] = 1;
+				yBound[0] = -1.5; yBound[1] = 1.5;
+				state = State::fractal;
+				update();
+				break;
+			case 3: //funtion changing screen
+				state = State::functionMenu;
+				break;
+			case 4: //quit
+				isRunning = false;
+				break;
+			}
+		}
+			
+		break;
+	}
+}
+
+//procces input for the function changing menu
+void MainGame::processFunMenuInput(SDL_Event& event) {
+	switch (event.type)
+	{
+	case SDL_QUIT: //when the red cross is pressed
+		isRunning = false;
+		break;
+	case SDL_KEYDOWN:
+		if (event.key.keysym.sym == 27)
+			state = State::escMenu;
+		break;
+	case SDL_MOUSEBUTTONDOWN:
+		//See if and which button is pressed
+		//divide the screen into rows the size of the buttons and calculate the row that has been clicked
+		int num = ceil((event.button.y-0.09*windowHeight)/(0.2*windowHeight));
+		if (num > 4) //if out of bounds
+			break;
+		//Increase num by adding 4*columnNumber
+		num += 4 * (ceil((event.button.x - 0.01 * windowWidth) / (0.49 * windowWidth)) - 1);
+
+		//update the selected fraction function setting
+		fracfunct = num;
+		//close the menu
+		state = State::fractal;
+		update();
+		break;
+	}
+}
+
 //update
 void MainGame::update() {
 	//start tracking the time
@@ -444,6 +537,7 @@ void MainGame::CreateBuddha(int maxN) {
 	}
 
 	//saving to file 
+	//W.I.P. probably for forever
 }
 
 //render to screen
@@ -453,6 +547,14 @@ void MainGame::render() {
 	SDL_RenderClear(renderer);
 	//render the texture to the screen
 	SDL_RenderCopy(renderer, fractalTex, NULL, NULL); //render texture to screen
+	switch (state) {
+	case State::escMenu:
+		SDL_RenderCopy(renderer, escMenuTex, NULL, NULL);
+		break;
+	case State::functionMenu:
+		SDL_RenderCopy(renderer, funcMenuTex, NULL, NULL);
+		break;
+	}
 	SDL_RenderPresent(renderer);
 }
 
@@ -490,7 +592,11 @@ void MainGame::zoomIn(int x, int y, double procent) {
 
 //clean the game
 void MainGame::clean() {
-	SDL_DestroyTexture(fractalTex); //destroy texture
+	//destroy textures
+	SDL_DestroyTexture(fractalTex); 
+	SDL_DestroyTexture(escMenuTex);
+	SDL_DestroyTexture(funcMenuTex);
+	//destroy other things
 	SDL_DestroyWindow(window); //destroy the window
 	SDL_DestroyRenderer(renderer); //destroy the renderer
 	SDL_Quit();

@@ -10,13 +10,12 @@ int main(int argc, char** argv) {
 	mainGame->initSystems("Fractals", false);
 
 	while (mainGame->running()) {
-
 		mainGame->processInput();
 		//mainGame->update();
 		mainGame->render();
-
 	}
 
+	//cleaning up
 	mainGame->clean();
 	return 0;
 	delete(mainGame);
