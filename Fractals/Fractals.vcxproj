@@ -148,6 +148,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ComplexNum.h" />
+    <ClInclude Include="GenerateImage.h" />
     <ClInclude Include="MainGame.h" />
   </ItemGroup>
   <ItemGroup>

@@ -59,6 +59,22 @@ int MainGame::checkStability(double cReal, double cIm, int N, double zReal = 0, 
 			tmp = zReal * zReal - zIm * zIm + cReal;
 			zIm = abs(2.0 * zReal * zIm) + cIm;
 			break;
+		case 5:
+			//strange arrow
+			tmp = zReal * zReal * zReal * zReal - 6 * zReal * zReal * zIm * zIm + zIm * zIm * zIm * zIm + cReal;	
+			zIm = 2.0 * zReal * zIm + cIm;
+			break;
+		case 6: 
+			//strange cross
+			tmp = zReal * zReal - zIm * zIm + cReal;
+			zIm = 4 * zReal * zIm * (zReal * zReal - zIm * zIm) + cIm;
+			break;
+		case 7:
+			//bird
+			//e^Zi * Z^2 + C
+			tmp = cos(zReal) * zReal * zReal - zIm * zIm + cReal;
+			zIm = sin(zIm) * 2.0 * zReal * zIm + cIm;
+			break;
 		default:
 			std::cout << "No fractal function selected, so just drawing default Mandelbrot\n";
 			//Z^2 + C
@@ -277,6 +293,15 @@ void MainGame::processInput() {
 				update();
 				break;
 			}
+			else if (keyPressed == 't' && event.key.keysym.sym >= 48 && event.key.keysym.sym < 58) { //change the color if c+num is pressed
+				amountOfThreads = (int)event.key.keysym.sym - 48;
+				if (amountOfThreads % 2 != 0 && amountOfThreads != 1) //check if not even
+					amountOfThreads = amountOfThreads - 1;
+				if (amountOfThreads > 8 || amountOfThreads < 1) //limit the threads to 8
+					amountOfThreads = 1;
+				update();
+				break;
+			}
 			switch(event.key.keysym.sym) { 
 			case  13: //enter
 				std::cout << "Enter real value\n";
@@ -333,10 +358,12 @@ void MainGame::processInput() {
 			case 'j': //toggle julia set
 				juliaSet = !juliaSet;
 				buddhaSet = false;
+				update();
 				break;
 			case 'b': //toggle buddha set
 				buddhaSet = !buddhaSet;
 				juliaSet = false;
+				update();
 				break;
 			case 'r': //resize window
 				std::cout << "\n-----------------------------------------\n"<<"\tResizeing window\n";
@@ -351,7 +378,12 @@ void MainGame::processInput() {
 				//destroy texture and create a new one
 				SDL_DestroyTexture(fractalTex);
 				initTextures();
+				update();
 				break;
+			case 'n':
+				std::cout << "Enter a new value for the maximum number of itterations,\n the higher the better but it will be slower\n (previous value was:" << maxN << ")\n";
+				std::cin >> maxN;
+				update();
 			default: //Save while key is pressed
 				keyPressed = event.key.keysym.sym;
 				break;
@@ -465,11 +497,42 @@ void MainGame::update() {
 	//parameters
 	int imageWidth = windowWidth;
 	int imageHeight = windowHeight;
-	int maxN = 500;
 	if (buddhaSet) {
+		int maxN = 50;
 		CreateBuddha(maxN);
 	}
 	else {
+		// Divide up the pixels over the threads
+		std::vector<std::thread> threads;
+		// Make a vector for the stability values and resize it, (NOTE it is unfolded)
+		std::vector<std::vector<int>*> stabilityVal; 
+		stabilityVal.resize(amountOfThreads);
+		for (int i = 0; i < stabilityVal.size(); i++)
+			stabilityVal[i] = new std::vector<int>((int)((double)windowHeight*((double)imageWidth / amountOfThreads)));
+
+		for (int i = 0; i < amountOfThreads; i++) {
+			int xBegin =(int)( i * ((double)imageWidth / amountOfThreads)); 
+			int xEnd = (int)((i + 1) * ((double)imageWidth / amountOfThreads));
+			// Generate the object that will be put in the thread
+			GenerateImage functorGen = GenerateImage(renderer, windowWidth, windowHeight, xBound, yBound, fracfunct, color);
+			// Start the thread
+			threads.push_back(std::thread(functorGen, imageHeight, maxN, xBegin, xEnd, stabilityVal[i], initialR, initialI, juliaSet));
+		}
+		// Join the strings
+		for (int i = 0; i < threads.size(); i++)
+			threads[i].join();
+		
+		// Render everything
+		for (int i = 0; i < stabilityVal.size(); i++){		
+			int beginX = (int)(i * ((double)imageWidth / amountOfThreads));
+			for (int j = 0; j < stabilityVal[i]->size(); j++) {
+				setColor(stabilityVal[i]->at(j), maxN); //set renderer draw color
+				SDL_RenderDrawPoint(renderer, (int)j / windowHeight + beginX, j % windowHeight);
+			}
+		}
+			
+
+		/*
 		//loop over eacht pixel
 		for (int y = 0; y < imageHeight; y++) { //each column
 			for (int x = 0; x < imageWidth; x++) { //each row
@@ -487,6 +550,7 @@ void MainGame::update() {
 				SDL_RenderDrawPoint(renderer, x, y);
 			}
 		}
+		*/
 	}
 	std::cout << "Time elapsed = " << clock() - t0 << std::endl;
 	//reset target

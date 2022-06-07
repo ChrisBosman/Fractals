@@ -8,7 +8,10 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <array>
 #include <ctime>
+#include <thread>
+#include "GenerateImage.h"
 
 class MainGame
 {
@@ -49,6 +52,7 @@ private:
 	void setColor(int n, int max); //set the color for the pixel based on the stability
 	void processEscMenuInput(SDL_Event&); //process input while in esc menu
 	void processFunMenuInput(SDL_Event&); //process input while in func menu
+
 	//private variables
 	bool isRunning;
 	SDL_Window* window;
@@ -70,4 +74,6 @@ private:
 	bool buddhaSet = false; //switch to a sort buddha thing
 	int fracfunct = 1; //the selected function for drawing fractals
 	State state = State::fractal;
+	uint8_t amountOfThreads = 2;
+	unsigned int maxN = 500;
 };
