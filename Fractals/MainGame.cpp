@@ -354,7 +354,7 @@ void MainGame::processInput() {
 				state = State::escMenu;
 				break;
 			case 115: //s
-				saveTexture("FractalImage1.png", fractalTex);
+				saveTexture("output/FractalImage1.png", fractalTex);
 				break;
 			case 1073741904: //left arrow
 				//move the bounds left
@@ -818,7 +818,7 @@ void MainGame::makeAnimation(){
 			double y = dy * frameNum + pos0.y;
 			zoomInComplex(x,y,zoomStep); //zoom in, move and update
 		}
-		std::string finalFileName = fileName + std::to_string(frameNum) + ".png";
+		std::string finalFileName = "output/" + fileName + std::to_string(frameNum) + ".png";
 		saveTexture(finalFileName.c_str(), fractalTex);
 	}
 }
