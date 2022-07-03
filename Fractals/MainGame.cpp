@@ -1,4 +1,21 @@
 #include "MainGame.h"
+
+template<typename T>
+struct xyVec
+{
+	T x, y;
+	xyVec() {
+		x = 0;
+		y = 0;
+	}
+	xyVec(T _x, T _y) {
+		x = _x; y = _y;
+	}
+	bool operator==(xyVec second) {
+		return (this->x == second.x && this->y == second.y);
+	}
+};
+
 //returns N numbers that are linear spaced from .. to .. 
 std::vector<double> linspace(double start, double end, int N) {
 	std::vector<double> ouput;
@@ -24,12 +41,12 @@ double MainGame::mapToImaginary(int y) {
 
 int MainGame::mapFromReal(double real) {
 	double range = xBound[1] - xBound[0];
-	return (real - xBound[0]) * (windowWidth / range);
+	return int((real - xBound[0]) * (windowWidth / range));
 }
 
 int MainGame::mapFromImaginary(double im) {
 	double range = yBound[1] - yBound[0];
-	return (im - yBound[0]) * (windowHeight / range);
+	return int((im - yBound[0]) * (windowHeight / range));
 }
 
 //check if points are stable with recursion
@@ -112,7 +129,7 @@ void MainGame::checkDensity(double cReal, double cIm, int N, std::vector<std::ve
 }
 
 //maping  hsv To RGB
-void mapHsvToRGB(int* RGB, int H, double V, double S) {
+void mapHsvToRGB(int* RGB, int H, double V, float S) {
 	//make sure H is between 0 and 360
 	while (H > 360)
 		H -= 360;
@@ -123,9 +140,12 @@ void mapHsvToRGB(int* RGB, int H, double V, double S) {
 		S = 1;
 	//calculate some variables
 	double C = V * S;
-	double X = C * (1 - abs((H / 60) % 2 - (int8_t)1));
+	double X = C * (1 - abs(fmod((H / 60.0),2) - 1));
 	double m = V - C;
 	// Calculate the values for R,G and B
+	if (H == 299) {
+		;
+	}
 	RGB[0] = (C * ((H >= 0 && H < 60) || (H >= 300 && H < 360)) + X * ((H >= 60 && H < 120) || (H >= 240 && H < 300)) + m) * 255; // red
 	RGB[1] = (C * ((H >= 60 && H < 120) || (H >= 120 && H < 180)) + X * ((H >= 0 && H < 60) || (H >= 180 && H < 240)) + m) * 255; // green
 	RGB[2] = (C * ((H >= 180 && H < 240) || (H >= 240 && H < 300)) + X * ((H >= 120 && H < 180) || (H >= 300 && H < 360)) + m) * 255; // blue
@@ -173,9 +193,14 @@ void MainGame::setColor(int n, int maxN) {
 		mapHsvToRGB(RGB, n, (double)n * 2 / maxN, (double)n * 5 / maxN);
 		break;
 	case 6: //multible colors, extremer
-		mapHsvToRGB(RGB, cos(n*n)*200, n,n);
+		mapHsvToRGB(RGB, cos(100*n)*360, (double)n * n / maxN, (double)n * n / maxN);
 		break;
-
+	case 7: //multible colors, calmer
+		mapHsvToRGB(RGB, n * 360 /maxN , (double)n*n/maxN, (double)n*n / maxN);
+		break;
+	case 8: //multible colors, more
+		mapHsvToRGB(RGB, n*5, (double)n * n / maxN, (double)n * n / maxN);
+		break;
 	default:
 		break;
 	}		
@@ -302,6 +327,18 @@ void MainGame::processInput() {
 				update();
 				break;
 			}
+			else if (keyPressed == 'z') {
+				switch (event.key.keysym.sym)
+				{
+				case 'i':
+					zoomIn(windowWidth / 2, windowHeight / 2, 0.7);
+					break;
+				case 'o':
+					zoomIn(windowWidth / 2, windowHeight / 2, 1.3);
+					break;
+				}
+				continue;
+			}
 			switch(event.key.keysym.sym) { 
 			case  13: //enter
 				std::cout << "Enter real value\n";
@@ -384,6 +421,10 @@ void MainGame::processInput() {
 				std::cout << "Enter a new value for the maximum number of itterations,\n the higher the better but it will be slower\n (previous value was:" << maxN << ")\n";
 				std::cin >> maxN;
 				update();
+				break;
+			case 'a':
+				makeAnimation();
+				break;
 			default: //Save while key is pressed
 				keyPressed = event.key.keysym.sym;
 				break;
@@ -396,7 +437,7 @@ void MainGame::processInput() {
 		case SDL_MOUSEBUTTONDOWN: //when mouse is pressed
 			if (event.button.button == SDL_BUTTON_LEFT) {
 				// zoom in by 80 %
-				zoomIn(event.button.x, event.button.y, 0.1);
+				zoomIn(event.button.x, event.button.y, 0.2);
 			}
 			if (event.button.button == SDL_BUTTON_RIGHT) {
 				//print the coordinates
@@ -413,7 +454,7 @@ void MainGame::processInput() {
 			if (event.wheel.y > 0) //zoom in
 					zoomIn(mousePos[0], mousePos[1], event.wheel.preciseY / 4.0);
 			if (event.wheel.y < 0) // zoom out
-				zoomIn(mousePos[0], mousePos[1], -event.wheel.preciseY * 4);
+				zoomIn(mousePos[0], mousePos[1], -(double)event.wheel.preciseY * 4.0);
 			break;
 		}
 	}
@@ -530,27 +571,6 @@ void MainGame::update() {
 				SDL_RenderDrawPoint(renderer, (int)j / windowHeight + beginX, j % windowHeight);
 			}
 		}
-			
-
-		/*
-		//loop over eacht pixel
-		for (int y = 0; y < imageHeight; y++) { //each column
-			for (int x = 0; x < imageWidth; x++) { //each row
-				//Find the coordinates on the complex plane for that pixel
-				double cReal = mapToReal(x);
-				double cIm = mapToImaginary(y);
-				//find how stable the point is
-				int n = 0;
-				if (juliaSet) {
-					n = checkStability(initialR, initialI, maxN, cReal, cIm);
-				}
-				else
-					n = checkStability(cReal, cIm, maxN, initialR, initialI);
-				setColor(n, maxN); //set renderer draw color
-				SDL_RenderDrawPoint(renderer, x, y);
-			}
-		}
-		*/
 	}
 	std::cout << "Time elapsed = " << clock() - t0 << std::endl;
 	//reset target
@@ -644,14 +664,163 @@ void MainGame::saveTexture(const char* fileName, SDL_Texture* tex){
 
 void MainGame::zoomIn(int x, int y, double procent) {
 	//Zoom in by ... procent (larger than 1 is zoom out)
-	double tmp = mapToReal(x - procent * windowWidth);
-	xBound[1] = mapToReal(x + procent * windowWidth);
+	double tmp = mapToReal(x - (procent * windowWidth)/2);
+	xBound[1] = mapToReal(x + (procent * windowWidth)/2);
 	xBound[0] = tmp;
-	tmp = mapToImaginary(y - procent * windowHeight);
-	yBound[1] = mapToImaginary(y + procent * windowHeight);
+	tmp = mapToImaginary(y - (procent * windowHeight)/2);
+	yBound[1] = mapToImaginary(y + (procent * windowHeight)/2);
 	yBound[0] = tmp;
 	//update screen
 	update();
+}
+
+//Zoom in using the complex coordinates
+void MainGame::zoomInComplex(double x, double y, double procent) {
+	//Zoom in by ... procent (larger than 1 is zoom out)
+	double xRange = xBound[1] - xBound[0];
+	xBound[0] = x - procent*xRange/2;
+	xBound[1] = x + procent*xRange/2;
+	double yRange = yBound[1] - yBound[0];
+	yBound[0] = y - procent*yRange/2;
+	yBound[1] = y + procent*yRange/2;
+	//update screen
+	update();
+}
+
+//Generate images over a path		Maybe also add rotation
+void MainGame::makeAnimation(){
+	//Disable buddhaset since it will take too long
+	buddhaSet = false;
+	//Print the settings explaination
+	std::cout << "______________________________________________________\n";
+	std::cout << "Setup to generate alot of images\nEnter the following settings with an [Enter] in between,\nmake sure that the screen is now at the first point\n(Type -1 to quit)\n\n"
+		<< "Zoom per step (0.1 = zoom until only 10% is visible)\n"
+		<< "Maximum number of itteration, 0 = keep current value (first point [space] Second point)\n"
+		<< "Number of frames\n"
+		<< "Screen resolution 0=keep current\n"
+		<< "Name of file, max 40 characters ('0' will lead to the default name)\n"
+		<< "Change initial values (0=no, 1=linear, 2=circualr)\n"
+		<< "Use the mouse to set the second point (0=no,1=yes)\n";
+	
+	// Make variables for the settings
+	double zoomStep;
+	int frames;
+	int w, h; //variables for the size
+	xyVec<double> pos0 = xyVec<double>(); //Start position
+	pos0.x = xBound[0] + (xBound[1] - xBound[0]) / 2;
+	pos0.y = yBound[0] + (yBound[1] - yBound[0]) / 2;
+	xyVec<double> pos1 = pos0; //end position
+	int changeIntialValues;
+	xyVec<double> initialChange = xyVec<double>();  // The relative change in the intial Real and Imag
+	double radiusInit; //radius of the circular path of the initial values
+	std::pair<int, int> maxItterations;
+	std::string fileName;
+	const unsigned short maxCharacters = 50;
+
+
+
+	// Ask for input
+	std::cin >> zoomStep;
+	if (zoomStep == -1) //if -1 was entered at the start, quit.
+		return;
+	std::cin >> maxItterations.first >> maxItterations.second >> frames >> w >> h >> fileName >> changeIntialValues;
+	if (maxItterations.first == 0)
+		maxItterations.first = maxN;
+	if (maxItterations.second == 0)
+		maxItterations.second = maxN;
+	if (frames < 1)
+		frames = 1;
+	if (fileName == "0" || fileName.size() > maxCharacters-4)
+		fileName = "Frame";
+	if (fileName.size() + ceil(log10((frames + 1))) > maxCharacters)
+		fileName = "F"; 
+	
+	// Use mouse to set the second point
+	{
+		int tmp;
+		std::cin >> tmp;
+		switch (tmp)
+		{
+		case 1:
+			//Use mouse to set second point
+			std::cout << "Left click for the last position\n";
+			while (pos1 == pos0) { //while the position is not set
+				SDL_Event event;
+				while (SDL_PollEvent(&event)) {
+					if (event.type == SDL_MOUSEBUTTONDOWN) {
+						if (event.button.button == SDL_BUTTON_LEFT) {
+							pos1.x = mapToReal(event.button.x);
+							pos1.y = mapToImaginary(event.button.y);
+						}
+					}
+				}
+			}
+			break;
+		case -1:
+			return;
+		}
+	}
+
+	// Change the initial values
+	if (changeIntialValues < 1) {
+		initialChange.x = 0;
+		initialChange.y = 0;
+	}
+	else {
+		switch (changeIntialValues) {
+		case 1:  // Linear
+			std::cout << "Relative change to initial real value (the value is now: " << initialR << ")\n"
+				<< "Relative change to initial imaginary value (the value is now: " << initialI << ")\n";
+			std::cin >> initialChange.x >> initialChange.y;
+			break;
+		case 2:  // Circular
+			std::cout << "Circular path, the center points will be the value that it is now.\n Enter the radius, (real value = " << initialR << ", imag value = " << initialI << ")\n";
+			std::cin >> radiusInit;
+			initialChange.x = initialR;  // Reusing this variable for storing the centre point
+			initialChange.y = initialI;
+		}
+	}
+
+	// Rescale the window
+	if (w != 0 && h != 0) {
+		SDL_SetWindowSize(window, w, h); //change size
+		windowWidth = w; windowHeight = h; //change variables
+		//destroy texture and create a new one
+		SDL_DestroyTexture(fractalTex);
+		initTextures();
+	}
+
+	//Precalculate some stuff
+	double dx = (pos1.x - pos0.x) / frames;
+	double dy = (pos1.y - pos0.y) / frames;
+	double dN = (maxItterations.second - maxItterations.first) / (double)frames;
+
+	std::cout << "Starting to generate " << frames << "\n";
+	update(); //The first frame has to be updated in advance
+	int frameNum; // Current frame number
+	for (frameNum = 0; frameNum < frames; frameNum++) {
+		if (frameNum > 0) { //don't move the first frame
+			//Update the maximum amount of itterations
+			maxN += dN;
+			//Update the initial values
+			switch (changeIntialValues) {
+			case 1:  // Linear
+				initialR += initialChange.x / frames;
+				initialI += initialChange.y / frames;
+				break;
+			case 2: // Circular
+				initialR = initialChange.x + radiusInit * cos((double)frameNum / frames * 2 * M_PI);
+				initialI = initialChange.y + radiusInit * sin((double)frameNum / frames * 2 * M_PI);
+				break;
+			}
+			//Get the x and y values of the frame
+			double x = dx * frameNum + pos0.x;
+			double y = dy * frameNum + pos0.y;
+			zoomInComplex(x,y,zoomStep); //zoom in, move and update
+		}
+		std::string finalFileName = fileName + std::to_string(frameNum) + ".png";
+		saveTexture(finalFileName.c_str(), fractalTex);
+	}
 }
 
 //clean the game

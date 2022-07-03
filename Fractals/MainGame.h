@@ -44,6 +44,7 @@ private:
 	void checkDensity(double cReal, double cIm, int N, std::vector<std::vector<uint16_t>>& density, double zReal, double zIm);
 	void saveTexture(const char*, SDL_Texture*);
 	void zoomIn(int x ,int y, double procent);
+	void zoomInComplex(double x, double y, double procent);
 	void CreateBuddha(int);
 	double mapToReal(int); //map pixel to complex plane
 	double mapToImaginary(int); //map pixel to complex plane
@@ -52,6 +53,7 @@ private:
 	void setColor(int n, int max); //set the color for the pixel based on the stability
 	void processEscMenuInput(SDL_Event&); //process input while in esc menu
 	void processFunMenuInput(SDL_Event&); //process input while in func menu
+	void makeAnimation(); //Generate number of images over a path
 
 	//private variables
 	bool isRunning;
